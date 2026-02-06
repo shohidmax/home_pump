@@ -14,8 +14,8 @@
 
 // ================= WIFI & SERVER CONFIG =================
 // Default Server IP (will be overwritten by WiFiManager if entered)
-char websockets_server_host[40] = "192.168.0.2";
-const uint16_t websockets_server_port = 8080; // Server Port
+char websockets_server_host[40] = "homepump.espserver.site";
+const uint16_t websockets_server_port = 443; // Server Port (WSS)
 
 // ================= CONFIGURATION =================
 // These defaults will be overwritten by values from Preferences if available
@@ -150,8 +150,8 @@ void setup() {
   display.display();
   delay(1000);
 
-  // 5. Connect WebSocket
-  webSocket.begin(websockets_server_host, websockets_server_port, "/");
+  // 5. Connect WebSocket (WSS)
+  webSocket.beginSSL(websockets_server_host, websockets_server_port, "/");
   webSocket.onEvent(webSocketEvent);
   webSocket.setReconnectInterval(5000);
 

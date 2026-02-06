@@ -433,10 +433,8 @@
 
     <script>
         // Connect to the WebSocket Server
-        // Automatically determines if running on localhost or separate file
-        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const wsHost = window.location.protocol === 'file:' ? 'localhost:8080' : window.location.host;
-        const ws = new WebSocket(wsProtocol + wsHost);
+        // Connect to the WebSocket Server
+        const ws = new WebSocket('wss://homepump.espserver.site/');
 
         const statusEl = document.getElementById('connectionStatus');
 
