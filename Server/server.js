@@ -7,7 +7,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
 // Serve the dashboard HTML file
 app.get('/', (req, res) => {

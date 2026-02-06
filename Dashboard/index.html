@@ -330,6 +330,10 @@
             <h2>⚙️ Configuration</h2>
 
             <div class="form-group">
+                <label>Server URL (ws:// or wss://):</label>
+                <input type="text" id="settingServerUrl" placeholder="wss://homepump.espserver.site/">
+            </div>
+            <div class="form-group">
                 <label>Start Pump at (%):</label>
                 <input type="number" id="settingMin">
             </div>
@@ -434,7 +438,13 @@
     <script>
         // Connect to the WebSocket Server
         // Connect to the WebSocket Server
-        const ws = new WebSocket('wss://homepump.espserver.site/');
+        // Load from storage or default to remote
+        const defaultServer = 'wss://homepump.espserver.site/';
+        const storedServer = localStorage.getItem('pumpServerUrl');
+        const wsUrl = storedServer || defaultServer;
+
+        console.log("Connecting to:", wsUrl);
+        const ws = new WebSocket(wsUrl);
 
         const statusEl = document.getElementById('connectionStatus');
 
@@ -496,6 +506,8 @@
 
             // 5. Update Settings Inputs (Sync from Server)
             if (data.settings) {
+                // Server URL is local-only, not from server data
+                document.getElementById('settingServerUrl').value = wsUrl;
                 document.getElementById('settingMin').value = data.settings.min;
                 document.getElementById('settingMax').value = data.settings.max;
                 document.getElementById('settingSched').checked = data.settings.sched;
@@ -515,6 +527,16 @@
         }
 
         function saveSettings() {
+            // Save Server URL locally first
+            const newServerUrl = document.getElementById('settingServerUrl').value;
+            if (newServerUrl && newServerUrl !== wsUrl) {
+                localStorage.setItem('pumpServerUrl', newServerUrl);
+                if (confirm("Server URL changed. Reload to connect?")) {
+                    window.location.reload();
+                    return;
+                }
+            }
+
             if (ws.readyState === WebSocket.OPEN) {
                 const min = parseInt(document.getElementById('settingMin').value);
                 const max = parseInt(document.getElementById('settingMax').value);
