@@ -2,20 +2,31 @@
 #include <Adafruit_SSD1306.h>
 #include <ArduinoJson.h>
 #include <DHT.h>
+#include <HTTPClient.h>
 #include <HardwareSerial.h>
 #include <NewPing.h>
 #include <Preferences.h>
 #include <RTClib.h>
+#include <Update.h>
 #include <WebServer.h>
 #include <WebSocketsClient.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <Wire.h>
+
 
 // ================= WIFI & SERVER CONFIG =================
 // Default Server IP (will be overwritten by WiFiManager if entered)
 char websockets_server_host[40] = "homepump.espserver.site";
 const uint16_t websockets_server_port = 443; // Server Port (WSS)
+
+// ================= OTA CONFIG =================
+const char *firmwareUrl = "https://github.com/shohidmax/home_pump/releases/download/tank/Home_tank.ino.bin";
+const char *versionUrl = "https://raw.githubusercontent.com/shohidmax/home_pump/refs/heads/main/version.txt";
+const char *currentFirmwareVersion = "1.1.0";
+const unsigned long updateCheckInterval = 5 * 60 * 1000; // 5 minutes
+unsigned long lastUpdateCheck = 0;
 
 // ================= CONFIGURATION =================
 // These defaults will be overwritten by values from Preferences if available
@@ -79,7 +90,13 @@ void beep(int times, int duration);
 void loadSettings();
 void saveSettings();
 void handleRoot();
+void handleRoot();
 void handleSaveHeight();
+// OTA Functions
+void checkForFirmwareUpdate();
+String fetchLatestVersion();
+void downloadAndApplyFirmware();
+bool startOTAUpdate(WiFiClient *client, int contentLength);
 
 void setup() {
   Serial.begin(115200);
@@ -146,6 +163,9 @@ void setup() {
     strcpy(websockets_server_host, custom_server_ip.getValue());
     Serial.print("Server IP: ");
     Serial.println(websockets_server_host);
+
+    // Check for updates immediately on boot
+    checkForFirmwareUpdate();
   }
   display.display();
   delay(1000);
@@ -166,6 +186,14 @@ void loop() {
   webSocket.loop();      // Handle network traffic
   server.handleClient(); // Handle local web server
   handleResetButton();
+
+  // OTA Update Check (Every 5 mins)
+  if (millis() - lastUpdateCheck >= updateCheckInterval) {
+    lastUpdateCheck = millis();
+    if (WiFi.status() == WL_CONNECTED) {
+      checkForFirmwareUpdate();
+    }
+  }
 
   // Read sensors every 2 seconds
   if (millis() - lastReadTime > 2000) {
@@ -487,12 +515,117 @@ void handleSaveHeight() {
   }
 }
 
-void beep(int times, int duration) {
-  for (int i = 0; i < times; i++) {
-    digitalWrite(PIN_BUZZER, HIGH);
-    delay(duration);
-    digitalWrite(PIN_BUZZER, LOW);
-    if (times > 1)
-      delay(100);
+if (times > 1)
+  delay(100);
+}
+}
+
+// ================= OTA FUNCTIONS =================
+void checkForFirmwareUpdate() {
+  Serial.println("Checking for firmware update...");
+
+  String latestVersion = fetchLatestVersion();
+
+  if (latestVersion == "") {
+    Serial.println("Could not verify latest version.");
+    return;
   }
+
+  Serial.println("Current Version: " + String(currentFirmwareVersion));
+  Serial.println("Latest Version: " + latestVersion);
+
+  if (latestVersion != currentFirmwareVersion) {
+    Serial.println("Update available. Starting OTA...");
+    display.clearDisplay();
+    display.setCursor(0, 0);
+    display.println("Updating Firmware...");
+    display.println("Do not turn off!");
+    display.display();
+    downloadAndApplyFirmware();
+  } else {
+    Serial.println("Device is up to date.");
+  }
+}
+
+String fetchLatestVersion() {
+  WiFiClientSecure client;
+  client.setInsecure(); // Skip certificate validation for GitHub
+
+  HTTPClient http;
+  if (!http.begin(client, versionUrl)) {
+    Serial.println("Unable to connect to Version URL");
+    return "";
+  }
+
+  int httpCode = http.GET();
+  String latestVersion = "";
+
+  if (httpCode == HTTP_CODE_OK) {
+    latestVersion = http.getString();
+    latestVersion.trim();
+  } else {
+    Serial.printf("Failed to fetch version. HTTP code: %d\n", httpCode);
+  }
+
+  http.end();
+  return latestVersion;
+}
+
+void downloadAndApplyFirmware() {
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  HTTPClient http;
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
+
+  if (!http.begin(client, firmwareUrl)) {
+    Serial.println("Unable to connect to Firmware URL");
+    return;
+  }
+
+  int httpCode = http.GET();
+  if (httpCode == HTTP_CODE_OK) {
+    int contentLength = http.getSize();
+    if (contentLength > 0) {
+      WiFiClient *stream = http.getStreamPtr();
+      if (startOTAUpdate(stream, contentLength)) {
+        Serial.println("OTA Success! Restarting...");
+        display.clearDisplay();
+        display.println("Update Success!");
+        display.println("Restarting...");
+        display.display();
+        delay(1000);
+        ESP.restart();
+      } else {
+        Serial.println("OTA Failed.");
+      }
+    }
+  }
+  http.end();
+}
+
+bool startOTAUpdate(WiFiClient *client, int contentLength) {
+  if (!Update.begin(contentLength))
+    return false;
+
+  size_t written = 0;
+  uint8_t buffer[1024];
+  unsigned long lastDataTime = millis();
+
+  while (written < contentLength) {
+    if (client->available()) {
+      int bytesRead = client->read(buffer, sizeof(buffer));
+      if (bytesRead > 0) {
+        Update.write(buffer, bytesRead);
+        written += bytesRead;
+        lastDataTime = millis();
+      }
+    }
+    if (millis() - lastDataTime > 20000) {
+      Update.abort();
+      return false;
+    }
+    yield();
+  }
+  return Update.end();
 }
