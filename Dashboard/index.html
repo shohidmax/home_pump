@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Water Tank</title>
+    <style>
+        :root {
+            --primary: #007bff;
+            --danger: #dc3545;
+            --success: #28a745;
+            --bg: #f4f7f6;
+            --card-bg: #ffffff;
+            --text-main: #333;
+            --text-secondary: #666;
+            --accent: #6610f2;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+        }
+
+        /* Water Tank Animation */
+        .tank-wrapper {
+            position: relative;
+            width: 120px;
+            height: 200px;
+            margin: 20px auto;
+            border: 4px solid #444;
+            border-top: none;
+            border-radius: 0 0 15px 15px;
+            background: #e9ecef;
+            overflow: hidden;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .water {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            /* Dynamic */
+            background: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+            transition: height 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.8;
+        }
+
+        /* Waves animation */
+        .water::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: 0;
+            width: 200%;
+            height: 20px;
+            background-color: #4facfe;
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: wave 2s infinite linear;
+        }
+
+        @keyframes wave {
+            0% {
+                transform: translateX(0) translateZ(0) scaleY(1);
+            }
+
+            50% {
+                transform: translateX(-25%) translateZ(0) scaleY(0.55);
+            }
+
+            100% {
+                transform: translateX(-50%) translateZ(0) scaleY(1);
+            }
+        }
+
+        .percentage-text {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--text-main);
+            margin: 10px 0;
+            display: block;
+        }
+
+        .temp-display {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        /* Control Buttons */
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .status-on {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-off {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .btn-container {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-on {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-on:hover {
+            background-color: #218838;
+        }
+
+        .btn-off {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-off:hover {
+            background-color: #c82333;
+        }
+
+        .btn-auto {
+            background-color: var(--primary);
+            color: white;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn-auto:hover {
+            background-color: #0069d9;
+        }
+
+        .connection-status {
+            background: #ccc;
+            color: #333;
+        }
+
+        /* Settings Modal */
+        .settings-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--primary);
+            transition: transform 0.2s;
+            z-index: 100;
+        }
+
+        .settings-icon:hover {
+            transform: rotate(90deg);
+        }
+
+        .modes-icon {
+            position: absolute;
+            top: 20px;
+            right: 70px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--accent);
+            transition: transform 0.2s;
+            z-index: 100;
+        }
+
+        .modes-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .modal h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: var(--text-main);
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .save-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            width: 100%;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .save-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="connectionStatus" class="connection-status">Connecting...</div>
+    <div class="settings-icon" onclick="openModal('settingsModal')">⚙️</div>
+    <div class="modes-icon" onclick="openModesModal()">📋</div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <span class="close-btn" onclick="closeModal('settingsModal')">&times;</span>
+            <h2>⚙️ Configuration</h2>
+
+            <div class="form-group">
+                <label>Start Pump at (%):</label>
+                <input type="number" id="settingMin">
+            </div>
+            <div class="form-group">
+                <label>Stop Pump at (%):</label>
+                <input type="number" id="settingMax">
+            </div>
+            <div class="form-group">
+                <label>Pre-Schedule Limit (%): <small>(Stop level before schedule)</small></label>
+                <input type="number" id="settingPre">
+            </div>
+            <div class="form-group">
+                <label>Recovery Trigger (%): <small>(Catch-up trigger level)</small></label>
+                <input type="number" id="settingRec">
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="settingSched" style="width: auto; transform: scale(1.5);">
+                <label style="margin:0;">Enable Smart Schedules</label>
+            </div>
+
+            <button class="save-btn" onclick="saveSettings()">Save Configuration</button>
+        </div>
+    </div>
+
+    <!-- Modes Modal -->
+    <div class="modal-overlay" id="modesModal">
+        <div class="modal" style="max-width: 500px;">
+            <span class="close-btn" onclick="closeModal('modesModal')">&times;</span>
+            <h2>📋 Mode Manager</h2>
+            <div id="modesList" style="max-height: 300px; overflow-y: auto; margin-bottom: 20px;">
+                <!-- Modes will be injected here -->
+            </div>
+            <button class="save-btn" style="background: var(--accent);" onclick="createNewMode()">+ Create New
+                Mode</button>
+        </div>
+    </div>
+
+    <!-- Create Mode Modal -->
+    <div class="modal-overlay" id="createModeModal" style="z-index: 1001;">
+        <div class="modal">
+            <span class="close-btn" onclick="closeModal('createModeModal')">&times;</span>
+            <h2>➕ Create New Mode</h2>
+            <div class="form-group">
+                <label>Mode Name:</label>
+                <input type="text" id="newModeName" placeholder="e.g. Holiday">
+            </div>
+            <div class="form-group">
+                <label>Start Pump at (%):</label>
+                <input type="number" id="newModeMin" value="20">
+            </div>
+            <div class="form-group">
+                <label>Stop Pump at (%):</label>
+                <input type="number" id="newModeMax" value="90">
+            </div>
+            <div class="form-group">
+                <label>Pre-Schedule Limit (%):</label>
+                <input type="number" id="newModePre" value="65">
+            </div>
+            <div class="form-group">
+                <label>Recovery Trigger (%):</label>
+                <input type="number" id="newModeRec" value="70">
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="newModeSched" checked style="width: auto; transform: scale(1.5);">
+                <label style="margin:0;">Enable Smart Schedules</label>
+            </div>
+            <button class="save-btn" onclick="saveNewMode()">Save Mode</button>
+        </div>
+    </div>
+
+    <h1>🚰 Water Tank Monitor</h1>
+
+    <div class="dashboard-grid">
+        <!-- Tank Level Card -->
+        <div class="card">
+            <h2>Live Water Level</h2>
+            <div class="tank-wrapper">
+                <div class="water" id="waterLevel" style="height: 0%;"></div>
+            </div>
+            <span class="percentage-text" id="waterText">--%</span>
+            <div class="temp-display">🌡️ Temperature: <span id="tempVal">--</span> °C</div>
+        </div>
+
+        <!-- Pump Control Card -->
+        <div class="card">
+            <h2>Pump Control</h2>
+
+            <div id="pumpStatus" class="status-badge status-off">Unknown State</div>
+            <div style="margin-bottom: 15px; font-size: 0.9rem; color: #666;" id="modeText">Mode: Waiting...</div>
+
+            <div class="btn-container">
+                <button class="btn-on" onclick="sendCommand('PUMP_ON')">FORCE ON</button>
+                <button class="btn-off" onclick="sendCommand('PUMP_OFF')">FORCE OFF</button>
+            </div>
+            <button class="btn-auto" onclick="sendCommand('AUTO')">🔄 Switch to AUTO Mode</button>
+        </div>
+
+        <button class="btn-auto" onclick="sendCommand('AUTO')">🔄 Switch to AUTO Mode</button>
+    </div>
+    </div>
+
+    <script>
+        // Connect to the WebSocket Server
+        // Automatically determines if running on localhost or separate file
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const wsHost = window.location.protocol === 'file:' ? 'localhost:8080' : window.location.host;
+        const ws = new WebSocket(wsProtocol + wsHost);
+
+        const statusEl = document.getElementById('connectionStatus');
+
+        ws.onopen = () => {
+            console.log('Connected to Server');
+            statusEl.innerText = "🟢 Connected";
+            statusEl.style.background = "#d4edda";
+            statusEl.style.color = "#155724";
+        };
+
+        ws.onclose = () => {
+            console.log('Disconnected');
+            statusEl.innerText = "🔴 Disconnected";
+            statusEl.style.background = "#f8d7da";
+            statusEl.style.color = "#721c24";
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+
+                // Only update if data contains sensor values
+                if (data.level !== undefined) {
+                    updateDashboard(data);
+                }
+            } catch (e) {
+                console.log('Received text:', event.data);
+            }
+        };
+
+        function updateDashboard(data) {
+            // 1. Update Water Height & Text
+            const level = data.level;
+            document.getElementById('waterLevel').style.height = level + '%';
+            document.getElementById('waterText').innerText = level + '%';
+
+            // 2. Update Temperature
+            document.getElementById('tempVal').innerText = data.temp;
+
+            // 3. Update Pump Status Badge
+            const pumpEl = document.getElementById('pumpStatus');
+            if (data.pump) {
+                pumpEl.innerText = "PUMP IS ON";
+                pumpEl.className = "status-badge status-on";
+            } else {
+                pumpEl.innerText = "PUMP IS OFF";
+                pumpEl.className = "status-badge status-off";
+            }
+
+            // 4. Update Mode Text
+            const modeEl = document.getElementById('modeText');
+            if (data.mode === "MANUAL") {
+                modeEl.innerHTML = "⚠️ <b>MANUAL MODE</b> (Auto-logic disabled)";
+                modeEl.style.color = "#dc3545";
+            } else {
+                modeEl.innerHTML = "✅ <b>AUTO MODE</b> (Sensors active)";
+                modeEl.style.color = "#28a745";
+            }
+
+            // 5. Update Settings Inputs (Sync from Server)
+            if (data.settings) {
+                document.getElementById('settingMin').value = data.settings.min;
+                document.getElementById('settingMax').value = data.settings.max;
+                document.getElementById('settingSched').checked = data.settings.sched;
+                // New advanced params
+                document.getElementById('settingPre').value = data.settings.pre || 65;
+                document.getElementById('settingRec').value = data.settings.rec || 70;
+            }
+        }
+
+        function sendCommand(cmd) {
+            if (ws.readyState === WebSocket.OPEN) {
+                const payload = JSON.stringify({ command: cmd });
+                ws.send(payload);
+            } else {
+                alert("Not connected to server!");
+            }
+        }
+
+        function saveSettings() {
+            if (ws.readyState === WebSocket.OPEN) {
+                const min = parseInt(document.getElementById('settingMin').value);
+                const max = parseInt(document.getElementById('settingMax').value);
+                const pre = parseInt(document.getElementById('settingPre').value);
+                const rec = parseInt(document.getElementById('settingRec').value);
+                const sched = document.getElementById('settingSched').checked;
+
+                const payload = JSON.stringify({
+                    command: "SETTINGS",
+                    min: min,
+                    max: max,
+                    pre: pre,
+                    rec: rec,
+                    sched: sched
+                });
+                ws.send(payload);
+                closeModal('settingsModal');
+            } else {
+                alert("Not connected to server!");
+            }
+        }
+
+        // --- Mode Manager Logic ---
+        let modes = JSON.parse(localStorage.getItem('pumpModes')) || [
+            { name: "Default", min: 20, max: 90, pre: 65, rec: 70, sched: true },
+            { name: "Summer (Heavy Use)", min: 40, max: 100, pre: 65, rec: 80, sched: true },
+            { name: "Winter (Low Use)", min: 10, max: 80, pre: 50, rec: 50, sched: false }
+        ];
+
+        function openModesModal() {
+            renderModes();
+            openModal('modesModal');
+        }
+
+        function renderModes() {
+            const list = document.getElementById('modesList');
+            list.innerHTML = "";
+            modes.forEach((mode, index) => {
+                const item = document.createElement('div');
+                item.style.borderBottom = "1px solid #eee";
+                item.style.padding = "10px 0";
+                item.style.display = "flex";
+                item.style.justifyContent = "space-between";
+                item.style.alignItems = "center";
+                item.innerHTML = `
+                    <div style="text-align:left;">
+                        <strong>${mode.name}</strong><br>
+                        <small style="color:#666;">${mode.min}% - ${mode.max}% | Sched: ${mode.sched ? 'ON' : 'OFF'}</small>
+                    </div>
+                    <div style="display:flex; gap:5px;">
+                        <button onclick="applyMode(${index})" style="padding:5px 10px; background:var(--success); color:white; border:none; border-radius:4px; font-size:0.8rem;">Apply</button>
+                        <button onclick="deleteMode(${index})" style="padding:5px 10px; background:var(--danger); color:white; border:none; border-radius:4px; font-size:0.8rem;">Del</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+            localStorage.setItem('pumpModes', JSON.stringify(modes));
+        }
+
+        function createNewMode() {
+            // Close the list modal first
+            closeModal('modesModal');
+
+            // Clear inputs
+            document.getElementById('newModeName').value = "";
+            document.getElementById('newModeMin').value = "20";
+            document.getElementById('newModeMax').value = "90";
+            document.getElementById('newModePre').value = "65";
+            document.getElementById('newModeRec').value = "70";
+            document.getElementById('newModeSched').checked = true;
+            openModal('createModeModal');
+        }
+
+        function saveNewMode() {
+            const name = document.getElementById('newModeName').value;
+            if (!name) { alert("Please enter a mode name"); return; }
+
+            const newMode = {
+                name: name,
+                min: parseInt(document.getElementById('newModeMin').value),
+                max: parseInt(document.getElementById('newModeMax').value),
+                pre: parseInt(document.getElementById('newModePre').value),
+                rec: parseInt(document.getElementById('newModeRec').value),
+                sched: document.getElementById('newModeSched').checked
+            };
+
+            modes.push(newMode);
+            renderModes();
+            closeModal('createModeModal');
+
+            // Re-open the list modal so user sees the new mode
+            setTimeout(() => openModal('modesModal'), 100);
+        }
+
+        function deleteMode(index) {
+            if (confirm("Delete this mode?")) {
+                modes.splice(index, 1);
+                renderModes();
+            }
+        }
+
+        function applyMode(index) {
+            const m = modes[index];
+            if (ws.readyState === WebSocket.OPEN) {
+                const payload = JSON.stringify({
+                    command: "SETTINGS",
+                    min: m.min,
+                    max: m.max,
+                    pre: m.pre,
+                    rec: m.rec,
+                    sched: m.sched
+                });
+                ws.send(payload);
+                closeModal('modesModal');
+                alert(`Applying Mode: ${m.name}`);
+            } else {
+                alert("Not connected!");
+            }
+        }
+
+        // Modal Logic
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        window.onclick = function (event) {
+            if (event.target.classList.contains('modal-overlay')) {
+                event.target.style.display = 'none';
+            }
+        }
+    </script>
+</body>
+
+</html>
